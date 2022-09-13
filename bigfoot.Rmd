@@ -1,0 +1,72 @@
+---
+title: "TidyTuesday Big Foot Sightings"
+author: "David Jackson"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
+    fig_width: 8
+    fig_height: 7
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(scales)
+library(DBI)
+library(odbc)
+library(janitor)
+```
+
+## Import Data
+
+```{r}
+bigfoot <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2022/2022-09-13/bigfoot.csv') %>% clean_names() 
+```
+## Upload data to SQL Server 2019
+
+```{r}
+## https://db.rstudio.com/databases/microsoft-sql-server/
+con <- DBI::dbConnect(odbc::odbc(), 
+                      Driver = "SQL Server", 
+                      Server = "localhost\\SQLEXPRESS", 
+                      Database = "TidyTuesday", 
+                      Trusted_Connection = "True")
+```
+
+```{r}
+dbWriteTable(con, "bigfoot",bigfoot ,overwrite=TRUE)
+dbListFields(con,"bigfoot")
+```
+```{r}
+write.csv(bigfoot,file="./bigfoot.csv",row.names = FALSE)
+```
+
+## Count Cases by Date
+
+```{r}
+bigfoot %>% na.omit() %>% count(date) %>% ggplot() + geom_col(aes(x=date,y=n))
+
+```
+
+## Case by State
+
+```{r}
+bigfoot %>% count(state) %>% ggplot(aes(x=reorder(state,n),y=n)) + geom_col() +
+ coord_flip() + labs(title="Sightings by State")
+```
+
+```{r}
+bigfoot %>% count(season) %>% ggplot(aes(x=reorder(season,n),y=n)) + geom_col() +
+ coord_flip() + labs(title="Sightings by season")
+```
+
+## Count by  classification
+* Class A: The source saw Bigfoot and is sure it was Bigfoot. 
+* Class B: The source saw Bigfoot evidence – such as a Bigfoot print aka a big footprint. ... 
+* Class C is of the “my friend said he saw Bigfoot” variety.
+
+```{r}
+bigfoot %>% count(classification) %>% ggplot(aes(x=classification,y=n)) + geom_col() +
+  labs(title ="Count by Classification") + coord_flip()
+```
+
